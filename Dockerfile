@@ -14,10 +14,7 @@ RUN apk --no-cache --virtual deps add \
 
 COPY . .
 
-RUN npm run build \
-    && rm -rf node_modules \
-    && npm install --production \
-    && apk del deps
+RUN npm run build
 
 ENTRYPOINT ["npm"]
 
