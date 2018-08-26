@@ -1,6 +1,6 @@
 'use strict'
 
-module.exports = function(err, req, res, next) {
+module.exports = function (err, req, res, next) {
   if (err) {
     if (err === true) err = {}
     err.status = err.status || 406

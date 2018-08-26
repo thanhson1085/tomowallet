@@ -1,10 +1,10 @@
 'use strict'
-var kue = require('kue'),
-  config = require('config'),
-  path = require('path'),
-  fs = require('fs')
+const kue = require('kue')
+const config = require('config')
+const path = require('path')
+const fs = require('fs')
 
-var q = kue.createQueue({
+const q = kue.createQueue({
   prefix: config.get('redis.prefix'),
   redis: {
     port: config.get('redis.port'),
@@ -14,10 +14,10 @@ var q = kue.createQueue({
 })
 
 fs.readdirSync(__dirname)
-  .filter(function(file) {
+  .filter(function (file) {
     return (file.indexOf('.') !== 0) && (file !== 'index.js')
   })
-  .forEach(function(file) {
+  .forEach(function (file) {
     var consumer = require(path.join(__dirname, file))
     q.process(consumer.name, consumer.task)
   })

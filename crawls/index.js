@@ -8,7 +8,7 @@ const crawls = async () => {
   watch()
 }
 
-const watch = async function() {
+const watch = async function () {
   let blockNumber = 0
   while (true) {
     let blk = await web3.eth.getBlock('latest')

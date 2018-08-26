@@ -20,7 +20,7 @@ app.set('view engine', 'ejs')
 app.use('/assets', express.static('./build'))
 app.use('/media', express.static('./media'))
 app.use(require('./apis'))
-app.use('/', function(req, res) {
+app.use('/', function (req, res) {
   res.render('app')
 })
 

@@ -1,11 +1,11 @@
 'use strict'
-const express = require('express'),
-  router = express.Router(),
-  BigNumber = require('bignumber.js'),
-  db = require('../models/mongodb'),
-  { web3 } = require('../models/blockchain')
+const express = require('express')
+const router = express.Router()
+const BigNumber = require('bignumber.js')
+const db = require('../models/mongodb')
+const { web3 } = require('../models/blockchain')
 
-router.post('/create/:address', async function(req, res, next) {
+router.post('/create/:address', async function (req, res, next) {
   const address = (req.params.address || '').toLowerCase()
   if (!web3.utils.isAddress(address)) return next(Error('Wrong address'))
 
@@ -13,7 +13,7 @@ router.post('/create/:address', async function(req, res, next) {
   return res.json({})
 })
 
-router.post('/reward/:address', async function(req, res, next) {
+router.post('/reward/:address', async function (req, res, next) {
   const receiver = (req.params.address || '').toLowerCase()
   if (!web3.utils.isAddress(receiver)) return next(Error('Wrong address'))
 
@@ -49,13 +49,13 @@ router.post('/reward/:address', async function(req, res, next) {
   return res.json(ret)
 })
 
-router.get('/txs/:address', async function(req, res, next) {
+router.get('/txs/:address', async function (req, res, next) {
   let limit = req.query.limit || 100
   let skip = req.query.skip || 0
   let address = (req.params.address || '').toLowerCase()
   if (!web3.utils.isAddress(address)) return next(Error('Wrong address'))
   let txs = await db.Tx.find({
-    $or: [{ to: address },{ from: address }]
+    $or: [{ to: address }, { from: address }]
   }).sort({createdAt: -1}).limit(limit).skip(skip)
 
   return res.json(txs)

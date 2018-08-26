@@ -1,17 +1,21 @@
 {
   "root": true,
-  "extends": "eslint:recommended",
   "env": {
     "node": true,
     "es6": true
   },
-  "plugins": [
-    "promise"
-  ],
   "parserOptions": {
     "ecmaVersion": 2017,
     "sourceType": "module"
   },
+  "extends": [
+    "standard",
+    "plugin:vue/recommended"
+  ],
+  "plugins": [
+    "vue",
+    "babel"
+  ],
   "rules": {
     "promise/catch-or-return": "warn",
     "indent": ["warn", 2, { "SwitchCase": 1 }],
