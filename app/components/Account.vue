@@ -3,14 +3,16 @@
     <Address :address="address" @detailClick="$emit('detailClick')" />
     <div class="account-balance">
       <div class="fs15 text-right" style="color: rgba(255, 152, 0, 0.6)">Network: <b>Tomo Testnet</b></div>
-      <div class="account-balance-number text-center" :style="{'font-size': `${balanceSize}px`}">
-        <animated-number
-        :value="balance"
-        :formatValue="formatBalance"
-        :duration="500"
-        />
+      <div class="account-balance-container">
+        <div class="account-balance-number text-center" :style="{'font-size': `${balanceSize}px`}">
+          <animated-number
+          :value="balance"
+          :formatValue="formatBalance"
+          :duration="500"
+          />
+        </div>
+        <div class="account-balance-symbol text-center">TOMO</div>
       </div>
-      <div class="account-balance-symbol text-center">TOMO</div>
     </div>
     <div class="menu">
       <div class="menu-item" @click="$emit('transferClick')">
@@ -58,14 +60,12 @@ export default {
   },
   methods: {
     formatBalance(value) {
-      var v = parseFloat(value);
-      return v.toFixed(2);
-      // if (Math.floor(v) === v) {
-      //   return v + '';
-      // }
-      // else {
-      //   return v.toFixed(2);
-      // }
+      if (this.balance < 0.01) {
+        value = Math.floor(value * 10000) / 10000
+        return value.toFixed(4);
+      }
+      value = Math.floor(value * 100) / 100
+      return value.toFixed(2);
     }
   }
 }
@@ -75,6 +75,10 @@ export default {
 <style lang="stylus" scoped>
   .account
     background #2C2C2C
+    // background-image: url(/media/bg.jpg);
+    // background-size: cover;
+    // background-repeat: no-repeat;
+    // background-position: center;
     width 380px
     max-width 100vw
     color #ffffff
@@ -86,11 +90,24 @@ export default {
     &-balance
       padding 15px 20px
 
+      @media(max-width 767px)
+        height calc(100vh - 447px)
+        position relative
+
+      &-container
+        margin-top 30px
+        @media(max-width 767px)
+          position absolute
+          top calc(50% + 20px)
+          margin-top 0
+          left 0
+          right 0
+          transform translateY(-50%)
+
       &-number
         font-size 100px
         font-weight 80
-        margin-top 35px
-        line-height 1.1
+        line-height 1
         transition all 0.3s
 
       &-symbol
@@ -105,7 +122,7 @@ export default {
       left 0
       right 0
       &-line
-        border-top 1px solid rgba(256, 256, 256, 0.2)
+        border-top 1px solid rgba(256, 256, 256, 0.1)
       &-item
         font-size 25px
         font-weight 200

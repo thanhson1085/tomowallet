@@ -15,15 +15,20 @@
           :address="address"
           :mnemonic="mnemonic"
           :privateKey="privateKey"/>
-        <Transfer v-else-if="mainContent === 'transfer'"
-          :address="address" :balance="balance"
+        <Transfer
+          ref="transfer"
+          v-else-if="mainContent === 'transfer'"
+          :address="address"
+          :balance="balance"
           :isSending="isProcessing"
           :error="error"
           @sendClick="transfer"/>
         <Transactions v-else-if="mainContent === 'transactions'"
           :logs="logs"
           :address="address"/>
-        <EarnTomo v-else-if="mainContent === 'earntomo' || mainContent === 'welcome'"
+        <EarnTomo
+          v-else-if="mainContent === 'earntomo' || mainContent === 'welcome'"
+          :isReward="isReward"
           :address="address"/>
       </MainContainer>
     </div>
@@ -34,8 +39,8 @@
 import Vue from 'vue'
 import axios from 'axios';
 
-// import bip39 from 'bip39'
-// import hdkey from 'ethereumjs-wallet/hdkey'
+import bip39 from 'bip39'
+import hdkey from 'ethereumjs-wallet/hdkey'
 import Web3 from 'web3'
 import BigNumber from 'bignumber.js';
 import EthereumTx from 'ethereumjs-tx';
@@ -108,11 +113,13 @@ export default {
 
     return {
       mainContent: 'transactions',
+      isReward: !!localStorage.requestedTomo || false,
       web3: {},
       address: address,
       privateKey: privateKey,
       mnemonic: mnemonic,
       balance: 0,
+      rawBalance: 0,
       error: '',
       isProcessing: false,
       logs: logs
@@ -124,7 +131,7 @@ export default {
         return 'Your Wallet Detail';
       }
       else if (this.mainContent === 'transfer') {
-        return 'Transfer TomoCoin'
+        return 'Transfer TOMO'
       }
       else if (this.mainContent === 'transactions') {
         return 'Transactions'
@@ -156,19 +163,9 @@ export default {
   methods: {
     changeMainContent(v) {
       this.mainContent = v;
-        if (v === 'transactions') {
-          axios.get('/api/wallets/txs/' + this.address)
-            .then(({data}) => {
-              var filter = data.filter(e => {
-                return !this.logs.find(i => e.hash === e.hash);
-              });
-              this.logs = this.logs.concat(filter);
-              this.logs = this.logs.sort((a, b) => {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-              });
-              localStorage.logs = JSON.stringify(this.logs);
-            });
-        }
+      if (v === 'transactions') {
+        this.getTransactions();
+      }
       var elmnt = document.getElementById("mainContainer");
       scrollTo(elmnt.offsetHeight, 500);
     },
@@ -182,17 +179,13 @@ export default {
       this.web3.eth.setProvider(walletProvider);
       this.web3.eth.defaultAccount = this.address;
       axios.post('/api/wallets/create/' + this.address)
-      axios.get('/api/wallets/txs/' + this.address)
-        .then(({data}) => {
-          var filter = data.filter(e => {
-            return !this.logs.find(i => e.hash === e.hash);
-          });
-          this.logs = this.logs.concat(filter);
-          this.logs = this.logs.sort((a, b) => {
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          });
-          localStorage.logs = JSON.stringify(this.logs);
-        });
+      .then(({data}) => {
+        if (data.reward) {
+          localStorage.requestedTomo = 'true';
+          this.isReward = true;
+        }
+      })
+      this.getTransactions();
       this.getBalance();
       setInterval(() => {
         this.getBalance();
@@ -200,23 +193,40 @@ export default {
     },
     getBalance() {
       this.web3.eth.getBalance(this.address, (err, v) => {
-        this.balance = Math.floor(parseFloat(v) / (10 ** 18) * 100) / 100;
+        if (this.rawBalance != parseInt(v)) {
+          this.rawBalance = parseInt(v);
+          setTimeout(() => {
+            this.getTransactions();
+          }, 2000);
+        }
+        this.balance = parseFloat(v) / (10 ** 18);
+        if (this.balance < 0.000001) {
+          this.balance = 0;
+        }
       });
+    },
+    getTransactions() {
+      axios.get('/api/wallets/txs/' + this.address)
+        .then(({data}) => {
+          this.logs = data;
+          localStorage.logs = JSON.stringify(this.logs);
+        });
     },
     createWallet() {
       this.mainContent = 'welcome';
+      // Remove create wallet by bip39 because it's slow
+      const mnemonic = bip39.generateMnemonic();
+      const key = hdkey.fromMasterSeed(bip39.mnemonicToSeed(mnemonic));
+      const wallet = key.derivePath("m/44'/88'/0'/0/0").getWallet();
 
-      // const mnemonic = bip39.generateMnemonic();
-      // const key = hdkey.fromMasterSeed(bip39.mnemonicToSeed(mnemonic));
-      // const wallet = key.derivePath("m/44'/60'/0'/0/0").getWallet();
+      this.address = '0x' + wallet.getAddress().toString('hex');
+      this.privateKey = wallet.getPrivateKey().toString('hex');
+      this.mnemonic = mnemonic;
 
-      // this.address = '0x' + wallet.getAddress().toString('hex');
-      // this.privateKey = wallet.getPrivateKey().toString('hex');
-
-      const wallet = this.web3.eth.accounts.create();
-      this.address = wallet.address;
-      this.privateKey = wallet.privateKey.slice(2);
-      this.mnemonic = '';
+      // const wallet = this.web3.eth.accounts.create();
+      // this.address = wallet.address;
+      // this.privateKey = wallet.privateKey.slice(2);
+      // this.mnemonic = '';
 
       localStorage.wallet = JSON.stringify({
         address: this.address,
@@ -228,23 +238,32 @@ export default {
     },
     importWallet(privatekeyOrMnemonic) {
       this.mainContent = 'welcome';
-      // if (privatekeyOrMnemonic.indexOf(' ') > 0) {
-      //   const key = hdkey.fromMasterSeed(bip39.mnemonicToSeed(privatekeyOrMnemonic));
-      //   const wallet = key.derivePath("m/44'/60'/0'/0/0").getWallet();
+      //import wallet with Bip39
+      if (privatekeyOrMnemonic.indexOf(' ') > 0) {
+        const key = hdkey.fromMasterSeed(bip39.mnemonicToSeed(privatekeyOrMnemonic));
+        const wallet = key.derivePath("m/44'/88'/0'/0/0").getWallet();
 
-      //   this.address = '0x' + wallet.getAddress().toString('hex');
-      //   this.privateKey = wallet.getPrivateKey().toString('hex');
-      //   this.mnemonic = privatekeyOrMnemonic;
-      // }
-      // else {
-      if (privatekeyOrMnemonic[0] !== '0' || privatekeyOrMnemonic[1] !== 'x') {
-        privatekeyOrMnemonic = '0x' + privatekeyOrMnemonic;
+        this.address = '0x' + wallet.getAddress().toString('hex');
+        this.privateKey = wallet.getPrivateKey().toString('hex');
+        this.mnemonic = privatekeyOrMnemonic;
       }
-      const wallet = this.web3.eth.accounts.privateKeyToAccount(privatekeyOrMnemonic);
-      this.address = wallet.address;
-      this.privateKey = privatekeyOrMnemonic.slice(2);
-      this.mnemonic = '';
+      else {
+        if (privatekeyOrMnemonic[0] !== '0' || privatekeyOrMnemonic[1] !== 'x') {
+          privatekeyOrMnemonic = '0x' + privatekeyOrMnemonic;
+        }
+        const wallet = this.web3.eth.accounts.privateKeyToAccount(privatekeyOrMnemonic);
+        this.address = wallet.address;
+        this.privateKey = privatekeyOrMnemonic.slice(2);
+        this.mnemonic = '';
+      }
+
+      // if (privatekeyOrMnemonic[0] !== '0' || privatekeyOrMnemonic[1] !== 'x') {
+      //   privatekeyOrMnemonic = '0x' + privatekeyOrMnemonic;
       // }
+      // const wallet = this.web3.eth.accounts.privateKeyToAccount(privatekeyOrMnemonic);
+      // this.address = wallet.address;
+      // this.privateKey = privatekeyOrMnemonic.slice(2);
+      // this.mnemonic = '';
 
       localStorage.wallet = JSON.stringify({
         address: this.address,
@@ -254,8 +273,9 @@ export default {
 
       this.initWallet();
     },
-    transfer({toAddress, amount}) {
+    transfer({toAddress, amount, callback}) {
       if (this.isProcessing) return;
+      this.$Progress.start()
       this.isProcessing = true;
       this.web3.eth.sendTransaction({
         from: this.address,
@@ -264,9 +284,14 @@ export default {
         gasLimit: 21000,
         gasPrice: 1
       }, (err, hash) => {
+        console.log(err, hash);
         if (err) {
+          this.$Progress.fail()
           this.error = err.toString();
+          return;
         }
+
+        this.$Progress.finish()
 
         this.addNewLog({
           hash: hash,
@@ -274,7 +299,9 @@ export default {
           from: this.address,
           to: toAddress,
           value: this.web3.utils.toWei(amount + '', 'ether')
-        })
+        });
+
+        callback && callback(hash);
 
         this.isProcessing = false;
       })

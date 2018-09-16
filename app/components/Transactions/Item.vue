@@ -22,25 +22,46 @@
 </template>
 
 <script>
+import BigNumber from 'bignumber.js'
 export default {
   props: ['isIn', 'data'],
   computed: {
     isProcessing() {
       var now = new Date().getTime();
       var t = new Date(this.data.createdAt).getTime();
-      if (now - t > 2000) {
+      if (now - t > 2000 && this.data._id) {
         return false;
       }
 
       return true;
     },
     value() {
-      return (parseInt(this.data.value) / (10 ** 18)).toFixed(2)
+      let v =  new BigNumber(this.data.value).div(1e18);
+      if (v.comparedTo(1) > 0) {
+          return v.toFixed(2).toString(10);
+      }
+      return v.toString(10);
     }
   },
   methods: {
+    getSelected() {
+      if (window.getSelection) {
+          return window.getSelection().toString();
+      } else if (document.getSelection) {
+          return document.getSelection().toString();
+      } else {
+          var selection = document.selection && document.selection.createRange();
+          if (selection.text) {
+              return selection.text.toString();
+          }
+          return "";
+      }
+      return "";
+    },
     openTomoScan() {
-      window.open(`https://scan.testnet.tomochain.com/txs/${this.data.hash}`, '_blank')
+      if (!this.getSelected()) {
+        window.open(`https://scan.testnet.tomochain.com/txs/${this.data.hash}`, '_blank')
+      }
     }
   }
 }

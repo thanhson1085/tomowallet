@@ -10,8 +10,11 @@ router.post('/create/:address', async function (req, res, next) {
   try {
     if (!web3.utils.isAddress(address)) return next(Error('Wrong address'))
 
-    db.Wallet.update({walletAddress: address}, {$set: {walletAddress: address}}, {upsert: true})
-    return res.json({})
+    let w = await db.Wallet.findOne({walletAddress: address})
+    if (!w) {
+      w = await db.Wallet.create({walletAddress: address})
+    }
+    return res.json(w)
   } catch (e) {
     return next(e)
   }
@@ -19,17 +22,17 @@ router.post('/create/:address', async function (req, res, next) {
 
 router.post('/reward/:address', async function (req, res, next) {
   const receiver = (req.params.address || '').toLowerCase()
-  try {
-    if (!web3.utils.isAddress(receiver)) return next(Error('Wrong address'))
+  if (!web3.utils.isAddress(receiver)) return next(Error('Wrong address'))
 
+  try {
     let wallet = await db.Wallet.findOne({walletAddress: receiver})
-    if (!wallet) {
-      wallet = await db.Wallet.create({walletAddress: receiver})
-    }
-    if ((wallet || {}).reward) {
+    if (wallet && wallet.reward) {
       return next(Error('Already rewarded'))
     }
 
+    if (!wallet) {
+      wallet = await db.Wallet.create({walletAddress: receiver})
+    }
     const amount = 15e18
     const accounts = await web3.eth.getAccounts()
     const faucet = {

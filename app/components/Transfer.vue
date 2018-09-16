@@ -1,9 +1,11 @@
 <template>
   <div class="transfer">
     <div v-if="showSummary && !error" class="transfer-summary">
-      <div>Your transaction is in process!</div>
+      <div>Your transaction is in process!<br/>
+        Click <a target="_blank" :href="`https://scan.testnet.tomochain.com/txs/${hash}`">here</a> to check your transaction on TomoScan
+      </div>
       <button class="btn-big btn-black outline mt30" @click="doAnotherTransaction">
-        CONTINUE
+        Do another transaction
       </button>
     </div>
     <div v-else>
@@ -14,12 +16,12 @@
         <div :style="{opacity: errorAddress ? 1 : 0}" class="transfer-error text-right mt5">{{errorAddress || '&nbsp;'}}</div>
       </div>
 
-      <div class="fs16 mt30">Amount</div>
+      <div class="fs16 mt30">Amount (Not include Tx Fee: 0.000000000000021 TOMO)</div>
       <div>
         <input
           ref="amountInput"
           type="number" class="transfer-amount"
-          v-model="amount"
+          placeholder="0"
           @change="changeAmount">
         <div class="transfer-symbol">TOMO</div>
         <div :style="{opacity: errorAmount ? 1 : 0}"  class="transfer-error text-right mt15">{{errorAmount || '&nbsp;'}}</div>
@@ -49,6 +51,7 @@ export default {
       errorAmount: '',
       errorAddress: '',
       showSummary: false,
+      hash: ''
     }
   },
   methods: {
@@ -69,18 +72,31 @@ export default {
         return;
       };
 
-      if (this.toAddress === this.address) {
-        this.errorAddress = 'recipient address is your, please try again';
-        return;
-      }
+      // if (this.toAddress === this.address) {
+      //   this.errorAddress = 'recipient address is your, please try again';
+      //   return;
+      // }
 
       this.errorAddress = '';
     },
+    formatBalance() {
+      if (this.balance < 0.01) {
+        var result = Math.floor(this.balance * 10000) / 10000
+        return result.toFixed(4);
+      }
+      else {
+        result = Math.floor(this.balance * 100) / 100
+        return result.toFixed(2);
+      }
+    },
     changeAmount() {
       this.amount = parseFloat(this.$refs.amountInput.value) || 0;
-      this.$refs.amountInput.value = this.amount;
-      if (isNaN(this.amount) || this.amount <= 0 || this.amount > this.balance) {
-        this.errorAmount = `Value must be less than ${this.balance.toLocaleString()} and greater than 0`
+      if (isNaN(this.amount)) {
+        this.errorAmount = 'Value must be a number';
+        return;
+      }
+      if (this.amount <= 0 || this.amount > this.balance) {
+        this.errorAmount = `Value must be less than ${this.formatBalance()} and greater than 0`
         return;
       }
 
@@ -90,19 +106,34 @@ export default {
       this.showSummary = false;
       this.amount = 0;
       this.toAddress = '';
+      this.hash = '';
     },
     send() {
       if (!this.toAddress) {
         this.errorAddress = 'enter recipient address, please';
         return;
       }
+      if (!Web3.utils.isAddress(this.toAddress)) {
+        this.errorAddress = 'address is invalid, please try again';
+        return;
+      };
       if (!this.amount) {
         this.errorAmount = 'enter amount, please';
         return;
       }
+      if (isNaN(this.amount) || this.amount <= 0 || this.amount > this.balance) {
+        this.errorAmount = `Value must be less than ${this.balance.toLocaleString()} and greater than 0`
+        return;
+      }
+
+      if (this.isSending) {
+        return;
+      }
       if (!this.errorAmount && !this.errorAddress && this.amount && this.toAddress) {
-        this.$emit('sendClick', {toAddress: this.toAddress, amount: this.amount});
-        this.showSummary = true;
+        this.$emit('sendClick', {toAddress: this.toAddress, amount: this.amount, callback: (hash) => {
+          this.showSummary = true;
+          this.hash = hash;
+        }});
       }
     }
   }

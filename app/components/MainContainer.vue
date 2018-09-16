@@ -1,5 +1,6 @@
 <template>
   <div id="mainContainer" class="main">
+    <vue-progress-bar></vue-progress-bar>
     <div class="main-header text-center">{{header || ''}}</div>
     <div class="main-container">
       <slot />
@@ -18,6 +19,8 @@ export default {
   .main
     width 620px
     max-width 100vw
+    background #ffffff
+    position relative
 
     @media(max-width: 767px) {
       width 100vw
@@ -33,7 +36,8 @@ export default {
 
     &-container
       overflow: auto;
-      margin-top: 15px;
+      padding-top: 15px;
+      padding-bottom: 15px;
       @media(min-width: 768px) {
         height: 540px;
       }

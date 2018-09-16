@@ -1,7 +1,10 @@
 <template>
   <div class="earntomo">
-    <div v-if="isRequested">
+    <div v-if="isReward || isRequested">
       We sent 15 TOMO to your wallet.<br/>Each wallet can only receive once
+    </div>
+    <div v-else-if="error" style="color: red;">
+      ERROR: {{error}}
     </div>
     <div v-else>
       <div>Hello friends, click <b>Request</b> button bellow to receive your first TOMO</div>
@@ -14,23 +17,30 @@
 import axios from 'axios';
 
 export default {
-  props: ['address'],
+  props: ['address', 'isReward'],
   data() {
     return {
+      error: '',
       isRequesting: false,
       isRequested: !!localStorage.requestedTomo || false
     }
   },
   methods: {
     request() {
-      if (this.isRequested) return;
+      if (this.isReward || this.isRequested) return;
 
       this.isRequesting = true;
+      this.$Progress.start()
       axios.post('api/wallets/reward/' + this.address)
       .then(({data}) => {
         this.isRequested = true;
         this.isRequesting = false;
+        this.$Progress.finish()
         localStorage.requestedTomo = 'true';
+      })
+      .catch(ex => {
+        this.error = ex.toString();
+        this.$Progress.fail();
       })
     }
   }
